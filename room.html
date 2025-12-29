@@ -1,0 +1,616 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
+  <title>Chatus | Public Rooms</title>
+
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+  <style>
+    /* --- UNIQUE THEME FOR ROOMS (Different from Home) --- */
+    :root {
+      --room-primary: #0984e3; /* Blue theme */
+      --room-bg: #dfe6e9;
+      --sidebar-bg: #2d3436;
+      --sidebar-text: #dfe6e9;
+      --my-msg: #74b9ff;
+      --other-msg: #ffffff;
+      --danger: #d63031;
+      --success: #00b894;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Poppins', sans-serif; }
+    
+    body { 
+      background: var(--room-bg); 
+      height: 100vh; 
+      overflow: hidden; /* App-like feel */
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* --- HEADER (Distinct Style) --- */
+    header {
+      background: #fff;
+      padding: 10px 20px;
+      display: flex; justify-content: space-between; align-items: center;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+      z-index: 10;
+      height: 60px;
+    }
+    .brand { font-weight: 700; font-size: 1.2rem; color: var(--room-primary); cursor: pointer; }
+    .nav-btn { text-decoration: none; color: #555; font-size: 0.9rem; font-weight: 600; padding: 5px 10px; border-radius: 5px; background: #eee; }
+
+    /* --- MAIN LAYOUT --- */
+    .app-container {
+      display: flex;
+      height: calc(100vh - 60px);
+      width: 100%;
+    }
+
+    /* --- LEFT SIDE: ROOMS LIST --- */
+    .sidebar {
+      width: 350px;
+      background: var(--sidebar-bg);
+      color: var(--sidebar-text);
+      display: flex;
+      flex-direction: column;
+      border-right: 1px solid #444;
+    }
+    
+    .sidebar-header {
+      padding: 15px;
+      border-bottom: 1px solid #444;
+      display: flex; justify-content: space-between; align-items: center;
+    }
+    .create-room-btn {
+      background: var(--room-primary); color: white; border: none; padding: 6px 12px;
+      border-radius: 4px; cursor: pointer; font-weight: 600; font-size: 0.8rem;
+    }
+
+    .room-list-container {
+      flex: 1; overflow-y: auto; padding: 10px;
+    }
+
+    .room-item {
+      background: #3e4648; padding: 12px; margin-bottom: 8px; border-radius: 8px;
+      cursor: pointer; transition: 0.2s; border-left: 4px solid transparent;
+    }
+    .room-item:hover { background: #4b5456; }
+    .room-item.active { background: #4b5456; border-left-color: var(--room-primary); }
+    
+    .room-name { font-weight: 600; color: #fff; font-size: 1rem; }
+    .room-moto { font-size: 0.75rem; color: #b2bec3; font-style: italic; margin-top: 2px; }
+    .room-stats { display: flex; justify-content: space-between; font-size: 0.7rem; color: #636e72; margin-top: 5px; }
+    .room-limit { color: #ffeaa7; }
+
+    /* --- RIGHT SIDE: CHAT AREA --- */
+    .chat-wrapper {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      background: #f1f2f6;
+      position: relative;
+    }
+
+    /* Empty State */
+    .no-chat-selected {
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      height: 100%; color: #999;
+    }
+    .no-chat-selected h2 { margin-bottom: 10px; color: #ccc; }
+
+    /* Chat Header */
+    .chat-header {
+      padding: 10px 20px; background: white; border-bottom: 1px solid #ddd;
+      display: none; justify-content: space-between; align-items: center;
+    }
+    .chat-info h3 { margin: 0; font-size: 1.1rem; color: #2d3436; }
+    .chat-info small { color: #666; font-size: 0.8rem; }
+    .chat-slogan { font-size: 0.75rem; color: var(--room-primary); font-weight: 600; }
+
+    .header-actions { display: flex; align-items: center; gap: 10px; }
+    .users-icon { font-size: 1.2rem; cursor: pointer; color: #555; }
+
+    /* Messages */
+    .messages-area {
+      flex: 1; overflow-y: auto; padding: 20px; display: none; flex-direction: column; gap: 10px;
+      background-image: radial-gradient(#d1d8e0 1px, transparent 1px); background-size: 20px 20px;
+    }
+
+    .msg { max-width: 70%; padding: 8px 12px; border-radius: 8px; font-size: 0.9rem; position: relative; word-wrap: break-word; }
+    .msg-sent { align-self: flex-end; background: var(--my-msg); color: #fff; }
+    .msg-received { align-self: flex-start; background: var(--other-msg); color: #2d3436; box-shadow: 0 1px 2px rgba(0,0,0,0.1); }
+    .sender-name { font-size: 0.7rem; font-weight: 700; margin-bottom: 3px; display: block; opacity: 0.7; }
+    .sys-msg { align-self: center; background: rgba(0,0,0,0.1); padding: 5px 10px; border-radius: 20px; font-size: 0.75rem; color: #555; }
+
+    /* VOTE CARD */
+    .vote-card {
+      align-self: center; width: 280px; background: white; border: 2px solid var(--room-primary);
+      border-radius: 10px; padding: 15px; text-align: center; box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+    }
+    .vote-title { font-weight: 700; color: var(--room-primary); margin-bottom: 5px; }
+    .vote-desc { font-size: 0.9rem; margin-bottom: 10px; color: #333; }
+    .vote-btns { display: flex; gap: 10px; }
+    .v-btn { flex: 1; padding: 8px; border: none; border-radius: 5px; cursor: pointer; color: white; font-weight: bold; }
+    .v-yes { background: var(--success); }
+    .v-no { background: var(--danger); }
+    .vote-result { font-weight: bold; margin-top: 5px; font-size: 0.9rem; }
+
+    /* Chat Input */
+    .input-bar {
+      padding: 15px; background: white; border-top: 1px solid #ddd;
+      display: none; gap: 10px; align-items: center;
+    }
+    .target-trigger {
+      width: 40px; height: 40px; border-radius: 50%; background: #2d3436; color: white;
+      border: none; font-size: 1.2rem; cursor: pointer; display: flex; align-items: center; justify-content: center;
+    }
+    .msg-input { flex: 1; padding: 10px 15px; border-radius: 20px; border: 1px solid #ccc; outline: none; }
+    .send-btn { background: var(--room-primary); color: white; border: none; padding: 10px 20px; border-radius: 20px; cursor: pointer; }
+
+    /* --- MOBILE RESPONSIVENESS --- */
+    .back-btn-mobile { display: none; font-size: 1.5rem; margin-right: 10px; cursor: pointer; color: #2d3436; }
+
+    @media (max-width: 768px) {
+      .app-container { position: relative; }
+      .sidebar { width: 100%; position: absolute; z-index: 5; height: 100%; }
+      .chat-wrapper { width: 100%; position: absolute; z-index: 1; height: 100%; display: none; }
+      .chat-wrapper.active { display: flex; z-index: 10; }
+      .back-btn-mobile { display: block; }
+      .no-chat-selected { display: none; }
+    }
+
+    /* --- MODALS --- */
+    .modal-overlay {
+      position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+      background: rgba(0,0,0,0.6); z-index: 100; display: none;
+      align-items: center; justify-content: center; backdrop-filter: blur(3px);
+    }
+    .modal-box {
+      background: white; width: 90%; max-width: 400px; padding: 20px;
+      border-radius: 10px; box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+    }
+    .modal-head { font-weight: 700; margin-bottom: 15px; font-size: 1.1rem; }
+    .form-row { margin-bottom: 12px; }
+    .form-row label { display: block; font-size: 0.8rem; margin-bottom: 4px; font-weight: 600; }
+    .form-row input, .form-row textarea, .form-row select { width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 5px; outline: none; }
+    .modal-btn { width: 100%; padding: 10px; background: var(--room-primary); color: white; border: none; border-radius: 5px; cursor: pointer; font-weight: 600; margin-top: 10px; }
+
+    /* User List Modal Items */
+    .u-item { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #eee; }
+    .ban-btn { color: red; cursor: pointer; font-size: 0.8rem; font-weight: bold; }
+  </style>
+
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-app.js";
+    import { getDatabase, ref, onValue, push, set, get, update } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-database.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyAXmyrXnLAB7eq4rH1cazUciq04WQp2Lew",
+      authDomain: "chatus-6fdb7.firebaseapp.com",
+      databaseURL: "https://chatus-6fdb7-default-rtdb.firebaseio.com",
+      projectId: "chatus-6fdb7",
+      storageBucket: "chatus-6fdb7.firebasestorage.app",
+      messagingSenderId: "256774540230",
+      appId: "1:256774540230:web:43152dbe637b7cee4440c7"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getDatabase(app);
+
+    let currentUser = null;
+    let currentRoomId = null;
+    let roomUsersCount = 0;
+    let isMeAdmin = false;
+
+    // --- 1. LOGIN DETECTION (Security) ---
+    window.addEventListener('load', () => {
+        const userData = localStorage.getItem('currentUser');
+        if (!userData) {
+            // No User Found - Redirect to Login
+            window.location.href = 'login.html';
+            return;
+        }
+        currentUser = JSON.parse(userData);
+        loadRoomList();
+    });
+
+    // --- 2. ROOM LIST LOGIC ---
+    function loadRoomList() {
+        onValue(ref(db, 'rooms'), (snap) => {
+            const list = document.getElementById('room-list');
+            list.innerHTML = '';
+            if(!snap.exists()) {
+                list.innerHTML = '<div style="color:#aaa; text-align:center; padding:20px">No rooms yet.</div>';
+                return;
+            }
+            snap.forEach(child => {
+                const r = child.val();
+                const div = document.createElement('div');
+                div.className = 'room-item';
+                div.innerHTML = `
+                    <div class="room-name">${r.name}</div>
+                    <div class="room-moto">"${r.moto}"</div>
+                    <div class="room-slogan">Slogan: ${r.slogan}</div>
+                    <div class="room-stats">
+                        <span>Limit: ${r.limit}</span>
+                        <span>Note: ${r.note.substring(0, 15)}...</span>
+                    </div>
+                `;
+                div.onclick = () => joinRoom(child.key, r);
+                list.appendChild(div);
+            });
+        });
+    }
+
+    // --- 3. CREATE ROOM LOGIC ---
+    window.openCreateModal = () => document.getElementById('modal-create').style.display = 'flex';
+    window.closeModal = (id) => document.getElementById(id).style.display = 'none';
+
+    window.createRoom = function() {
+        const name = document.getElementById('r-name').value;
+        const limit = document.getElementById('r-limit').value;
+        const moto = document.getElementById('r-moto').value;
+        const slogan = document.getElementById('r-slogan').value;
+        const note = document.getElementById('r-note').value;
+
+        if(!name || !limit) return alert("Name and Limit are mandatory!");
+
+        const newRef = push(ref(db, 'rooms'));
+        const rId = newRef.key;
+        
+        set(newRef, {
+            name, limit, moto, slogan, note,
+            createdBy: currentUser.username,
+            createdAt: Date.now()
+        }).then(() => {
+            // Add creator as Admin
+            set(ref(db, `rooms/${rId}/users/${currentUser.username}`), {
+                role: 'admin', status: 'active'
+            });
+            closeModal('modal-create');
+            alert('Room Created!');
+        });
+    }
+
+    // --- 4. JOIN ROOM & CHAT LOGIC ---
+    window.joinRoom = function(rId, rData) {
+        currentRoomId = rId;
+        
+        // UI Updates
+        document.querySelector('.sidebar').style.display = 'none'; // Mobile hide
+        document.querySelector('.chat-wrapper').classList.add('active'); // Mobile show
+        
+        // Desktop UI
+        if(window.innerWidth > 768) document.querySelector('.sidebar').style.display = 'flex';
+
+        document.getElementById('no-chat').style.display = 'none';
+        document.getElementById('chat-header').style.display = 'flex';
+        document.getElementById('messages-area').style.display = 'flex';
+        document.getElementById('input-bar').style.display = 'flex';
+
+        // Set Headers
+        document.getElementById('active-room-name').innerText = rData.name;
+        document.getElementById('active-room-moto').innerText = rData.moto;
+        document.getElementById('active-room-slogan').innerText = `"${rData.slogan}"`;
+
+        // Add user to room DB
+        const uRef = ref(db, `rooms/${rId}/users/${currentUser.username}`);
+        get(uRef).then(snap => {
+            if(snap.exists() && snap.val().status === 'banned') {
+                alert("You are banned from this room!");
+                leaveRoom();
+                return;
+            }
+            if(!snap.exists()) {
+                set(uRef, { role: 'member', status: 'active' });
+            }
+        });
+
+        monitorUsers(rId);
+        monitorChat(rId);
+    }
+
+    window.leaveRoom = function() {
+        currentRoomId = null;
+        document.querySelector('.chat-wrapper').classList.remove('active');
+        document.querySelector('.sidebar').style.display = 'flex';
+        // Reset UI
+        document.getElementById('no-chat').style.display = 'flex';
+        document.getElementById('chat-header').style.display = 'none';
+        document.getElementById('messages-area').style.display = 'none';
+        document.getElementById('input-bar').style.display = 'none';
+    }
+
+    function monitorUsers(rId) {
+        onValue(ref(db, `rooms/${rId}/users`), (snap) => {
+            let count = 0;
+            const targetSelect = document.getElementById('target-select');
+            targetSelect.innerHTML = '<option value="">Select Target</option>';
+            isMeAdmin = false;
+
+            snap.forEach(c => {
+                const u = c.val();
+                if(u.status === 'active') {
+                    count++;
+                    if(c.key !== currentUser.username) {
+                        const opt = document.createElement('option');
+                        opt.value = c.key; opt.innerText = c.key;
+                        targetSelect.appendChild(opt);
+                    }
+                }
+                if(c.key === currentUser.username) {
+                    if(u.status === 'banned') {
+                        alert('You have been banned!');
+                        window.location.href = 'index.html';
+                    }
+                    if(u.role === 'admin') isMeAdmin = true;
+                }
+            });
+            roomUsersCount = count;
+        });
+    }
+
+    function monitorChat(rId) {
+        onValue(ref(db, `rooms/${rId}/chats`), (snap) => {
+            const area = document.getElementById('messages-area');
+            area.innerHTML = '';
+            snap.forEach(c => {
+                const m = c.val();
+                const mId = c.key;
+                
+                if(m.type === 'text') {
+                    const div = document.createElement('div');
+                    const isMe = m.sender === currentUser.username;
+                    div.className = `msg ${isMe ? 'msg-sent' : 'msg-received'}`;
+                    div.innerHTML = `<span class="sender-name">${m.sender}</span>${m.text}`;
+                    area.appendChild(div);
+                } else if (m.type === 'sys') {
+                    const div = document.createElement('div');
+                    div.className = 'sys-msg';
+                    div.innerText = m.text;
+                    area.appendChild(div);
+                } else if (m.type === 'vote') {
+                    renderVoteCard(area, m, mId);
+                }
+            });
+            area.scrollTop = area.scrollHeight;
+        });
+    }
+
+    window.sendMsg = function() {
+        const inp = document.getElementById('msg-input');
+        const txt = inp.value.trim();
+        if(!txt) return;
+        push(ref(db, `rooms/${currentRoomId}/chats`), {
+            type: 'text', sender: currentUser.username, text: txt, timestamp: Date.now()
+        });
+        inp.value = '';
+    }
+
+    // --- 5. TARGET & VOTING SYSTEM (Majority Logic) ---
+    window.openTargetModal = () => document.getElementById('modal-target').style.display = 'flex';
+
+    window.startVote = function() {
+        const type = document.getElementById('vote-type').value; // 'kick' or 'admin'
+        const target = document.getElementById('target-select').value;
+        if(!target) return alert("Select user!");
+
+        push(ref(db, `rooms/${currentRoomId}/chats`), {
+            type: 'vote',
+            action: type,
+            target: target,
+            sender: currentUser.username,
+            status: 'active',
+            votes: { [currentUser.username]: 'yes' } // Creator auto-votes yes
+        });
+        closeModal('modal-target');
+    }
+
+    function renderVoteCard(container, m, mId) {
+        const div = document.createElement('div');
+        div.className = 'vote-card';
+        
+        let title = m.action === 'kick' ? '🛑 Eliminate Vote' : '⭐ Admin Vote';
+        let desc = m.action === 'kick' ? `Kick <b>${m.target}</b> out?` : `Make <b>${m.target}</b> Admin?`;
+        
+        // Calculate
+        let yes = 0, no = 0;
+        if(m.votes) Object.values(m.votes).forEach(v => v === 'yes' ? yes++ : no++);
+        
+        // Render
+        if(m.status === 'active') {
+            div.innerHTML = `
+                <div class="vote-title">${title}</div>
+                <div class="vote-desc">${desc}</div>
+                <div class="vote-btns">
+                    <button class="v-btn v-yes" onclick="castVote('${mId}', 'yes')">Yes (${yes})</button>
+                    <button class="v-btn v-no" onclick="castVote('${mId}', 'no')">No (${no})</button>
+                </div>
+                <div style="font-size:0.7rem; margin-top:5px; color:#888;">Majority Wins</div>
+            `;
+            // Logic Check immediately after render
+            checkVoteStatus(m, mId, yes, no);
+        } else {
+            let resColor = m.status === 'passed' ? 'green' : 'red';
+            div.innerHTML = `
+                <div class="vote-title">${title}</div>
+                <div class="vote-result" style="color:${resColor}">Result: ${m.status.toUpperCase()}</div>
+                <div style="font-size:0.8rem">Target: ${m.target}</div>
+            `;
+        }
+        container.appendChild(div);
+    }
+
+    window.castVote = function(mId, val) {
+        update(ref(db, `rooms/${currentRoomId}/chats/${mId}/votes`), {
+            [currentUser.username]: val
+        });
+    }
+
+    function checkVoteStatus(m, mId, yes, no) {
+        // Logic: Majority > 50% of active users (simple check)
+        const threshold = Math.floor(roomUsersCount / 2) + 1;
+        
+        if(yes >= threshold) {
+            // PASS
+            update(ref(db, `rooms/${currentRoomId}/chats/${mId}`), { status: 'passed' });
+            
+            // Execute Action
+            if(m.action === 'kick') {
+                update(ref(db, `rooms/${currentRoomId}/users/${m.target}`), { status: 'banned' });
+                sendSys(`${m.target} was eliminated by the community.`);
+            } else {
+                update(ref(db, `rooms/${currentRoomId}/users/${m.target}`), { role: 'admin' });
+                sendSys(`${m.target} is now an Admin.`);
+            }
+        } else if (no >= threshold) {
+            // REJECT
+            update(ref(db, `rooms/${currentRoomId}/chats/${mId}`), { status: 'rejected' });
+            sendSys(`Vote to ${m.action} ${m.target} failed.`);
+        }
+    }
+
+    function sendSys(msg) {
+        push(ref(db, `rooms/${currentRoomId}/chats`), {
+            type: 'sys', text: msg, timestamp: Date.now()
+        });
+    }
+
+    // --- 6. ADMIN USER LIST & BAN ---
+    window.openUsersList = function() {
+        const modal = document.getElementById('modal-users');
+        const list = document.getElementById('user-list-content');
+        modal.style.display = 'flex';
+        list.innerHTML = 'Loading...';
+
+        get(ref(db, `rooms/${currentRoomId}/users`)).then(snap => {
+            list.innerHTML = '';
+            snap.forEach(c => {
+                const u = c.val();
+                if(u.status === 'active') {
+                    const div = document.createElement('div');
+                    div.className = 'u-item';
+                    div.innerHTML = `
+                        <span>${c.key} <small>(${u.role})</small></span>
+                    `;
+                    // If I am admin, show Ban button
+                    if(isMeAdmin && c.key !== currentUser.username) {
+                        const btn = document.createElement('span');
+                        btn.className = 'ban-btn';
+                        btn.innerText = 'Ban Temp';
+                        btn.onclick = () => {
+                            if(confirm(`Ban ${c.key}?`)) {
+                                update(ref(db, `rooms/${currentRoomId}/users/${c.key}`), { status: 'banned' });
+                                alert('Banned');
+                                closeModal('modal-users');
+                            }
+                        };
+                        div.appendChild(btn);
+                    }
+                    list.appendChild(div);
+                }
+            });
+        });
+    }
+
+  </script>
+</head>
+<body>
+
+  <header>
+    <div class="brand" onclick="window.location.href='index.html'">Chatus Public Rooms</div>
+    <a href="index.html" class="nav-btn">Home</a>
+  </header>
+
+  <div class="app-container">
+    
+    <div class="sidebar">
+      <div class="sidebar-header">
+        <span>Available Rooms</span>
+        <button class="create-room-btn" onclick="openCreateModal()">+ Create</button>
+      </div>
+      <div id="room-list" class="room-list-container">
+        </div>
+    </div>
+
+    <div class="chat-wrapper">
+      
+      <div id="no-chat" class="no-chat-selected">
+        <h2>Select a Room</h2>
+        <p>Join a conversation from the left menu.</p>
+      </div>
+
+      <div id="chat-header" class="chat-header">
+        <div style="display:flex; align-items:center;">
+            <span class="back-btn-mobile" onclick="leaveRoom()">⬅</span>
+            <div class="chat-info">
+              <h3 id="active-room-name">Room Name</h3>
+              <div id="active-room-slogan" class="chat-slogan">Slogan</div>
+              <small id="active-room-moto">Moto</small>
+            </div>
+        </div>
+        <div class="header-actions">
+           <span class="users-icon" onclick="openUsersList()">👥</span>
+        </div>
+      </div>
+
+      <div id="messages-area" class="messages-area"></div>
+
+      <div id="input-bar" class="input-bar">
+        <button class="target-trigger" onclick="openTargetModal()">🎯</button>
+        <input type="text" id="msg-input" class="msg-input" placeholder="Type public message...">
+        <button class="send-btn" onclick="sendMsg()">Send</button>
+      </div>
+
+    </div>
+  </div>
+
+  <div id="modal-create" class="modal-overlay">
+    <div class="modal-box">
+      <div class="modal-head">Create Public Room</div>
+      <div class="form-row"><label>Room Name</label><input type="text" id="r-name"></div>
+      <div class="form-row"><label>Limit</label><input type="number" id="r-limit" value="50"></div>
+      <div class="form-row"><label>Moto</label><input type="text" id="r-moto"></div>
+      <div class="form-row"><label>Slogan</label><input type="text" id="r-slogan"></div>
+      <div class="form-row"><label>Note</label><textarea id="r-note"></textarea></div>
+      <div style="display:flex; gap:10px;">
+          <button class="modal-btn" onclick="createRoom()">Create</button>
+          <button class="modal-btn" style="background:#aaa" onclick="closeModal('modal-create')">Cancel</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="modal-target" class="modal-overlay">
+    <div class="modal-box">
+      <div class="modal-head">Target User</div>
+      <div class="form-row">
+          <label>Action Type</label>
+          <select id="vote-type">
+              <option value="kick">Eliminate Vote (Kick)</option>
+              <option value="admin">Promote Vote (Admin)</option>
+          </select>
+      </div>
+      <div class="form-row">
+          <label>Target User</label>
+          <select id="target-select"></select>
+      </div>
+      <button class="modal-btn" onclick="startVote()">Initiate Vote</button>
+      <button class="modal-btn" style="background:#aaa; margin-top:5px" onclick="closeModal('modal-target')">Cancel</button>
+    </div>
+  </div>
+
+  <div id="modal-users" class="modal-overlay">
+    <div class="modal-box">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px">
+             <div class="modal-head" style="margin:0">Active Users</div>
+             <span onclick="closeModal('modal-users')" style="cursor:pointer; font-weight:bold">✕</span>
+        </div>
+        <div id="user-list-content" style="max-height:300px; overflow-y:auto"></div>
+    </div>
+  </div>
+
+</body>
+</html>
